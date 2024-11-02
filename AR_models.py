@@ -1,11 +1,33 @@
 import pandas as pd
 import numpy as np
 from datetime import timedelta
+import matplotlib.pyplot as plt
 import statsmodels.api as sm
 from statsmodels.stats.diagnostic import het_breuschpagan
 
 
-class MarketModel:
+class ARModel:
+    def __init__(
+        self,
+        asset_returns,
+        event_date,
+        estimation_window_size,
+        horizon,
+    ):
+        self.asset_returns = asset_returns
+        self.event_date = pd.to_datetime(event_date)
+        self.estimation_window_size = estimation_window_size
+        self.horizon = horizon
+        self.data = None
+
+    def verify_assumptions(self):
+        raise NotImplementedError("Subclasses must implement this method.")
+
+    def calculate_CAR(self):
+        raise NotImplementedError("Subclasses must implement this method.")
+
+
+class MarketModel(ARModel):
     def __init__(
         self,
         asset_returns,
@@ -15,16 +37,19 @@ class MarketModel:
         horizon,
         robust=False,
     ):
+        super().__init__(
+            asset_returns,
+            event_date,
+            estimation_window_size,
+            horizon,
+        )
         assert asset_returns.index.equals(
             market_returns.index
         ), "The indices of the two series do not match!"
-        self.asset_returns = asset_returns
+        self.name = "AR_Market_Model"
         self.market_returns = market_returns
         self.alpha = None
         self.beta = None
-        self.event_date = pd.to_datetime(event_date)
-        self.estimation_window_size = estimation_window_size
-        self.horizon = horizon
         self.robust = robust
 
         data = pd.DataFrame(
@@ -43,19 +68,19 @@ class MarketModel:
         ]
         assumptions = [
             {
-                "name": "Linearity between asset and market returns",
-                "verified": False,
-                "method": "OLS regression to check significance of beta.",
+                "Assumption": "Linearity between asset and market returns",
+                "Verified": False,
+                "Verification_Method": "OLS regression to check significance of beta.",
             },
             {
-                "name": "Homoscedasticity",
-                "verified": False,
-                "method": "Breusch-Pagan test.",
+                "Assumption": "Homoscedasticity",
+                "Verified": False,
+                "Verification_Method": "Breusch-Pagan test.",
             },
             {
-                "name": "No autocorrelation of errors",
-                "verified": False,
-                "method": "Durbin-Watson test.",
+                "Assumption": "No autocorrelation of errors",
+                "Verified": False,
+                "Verification_Method": "Durbin-Watson test.",
             },
         ]
 
@@ -100,6 +125,11 @@ class MarketModel:
         expected_returns = (
             self.alpha + self.beta * self.event_window_data["market_returns"]
         )
+        self.residuals = (
+            self.estimation_window_data["asset_returns"]
+            - self.alpha
+            + self.beta * self.estimation_window_data["market_returns"]
+        )
         self.abnormal_returns = (
             self.event_window_data["asset_returns"] - expected_returns
         )
@@ -107,18 +137,21 @@ class MarketModel:
         return CAR
 
 
-class MarketAdjustedModel:
+class MarketAdjustedModel(ARModel):
     def __init__(
         self, asset_returns, market_returns, event_date, estimation_window_size, horizon
     ):
+        super().__init__(
+            asset_returns,
+            event_date,
+            estimation_window_size,
+            horizon,
+        )
         assert asset_returns.index.equals(
             market_returns.index
         ), "The indices of the two series do not match!"
-        self.asset_returns = asset_returns
+        self.name = "AR_Market_Adjusted_Model"
         self.market_returns = market_returns
-        self.event_date = pd.to_datetime(event_date)
-        self.estimation_window_size = estimation_window_size
-        self.horizon = horizon
 
         data = pd.DataFrame(
             data={"asset_returns": asset_returns, "market_returns": market_returns}
@@ -136,9 +169,9 @@ class MarketAdjustedModel:
         ]
         assumptions = [
             {
-                "name": "Asset returns move identically with the market",
-                "verified": False,
-                "method": "Check correlation between asset and market returns.",
+                "Assumption": "Asset returns move identically with the market",
+                "Verified": False,
+                "Verification_Method": "Check correlation between asset and market returns.",
             }
         ]
 
@@ -157,6 +190,10 @@ class MarketAdjustedModel:
             self.data.index >= self.event_date - timedelta(days=1)
         ]
         expected_returns = self.event_window_data["market_returns"]
+        self.residuals = (
+            self.estimation_window_data["asset_returns"]
+            - self.estimation_window_data["market_returns"]
+        )
         self.abnormal_returns = (
             self.event_window_data["asset_returns"] - expected_returns
         )
@@ -164,19 +201,22 @@ class MarketAdjustedModel:
         return CAR
 
 
-class MeanAdjustedModel:
+class MeanAdjustedModel(ARModel):
     def __init__(
         self, asset_returns, peer_returns, event_date, estimation_window_size, horizon
     ):
+        super().__init__(
+            asset_returns,
+            event_date,
+            estimation_window_size,
+            horizon,
+        )
         assert asset_returns.index.equals(
             peer_returns.index
         ), "The indices of the two series do not match!"
-        self.asset_returns = asset_returns
+        self.name = "AR_Mean_Adjusted_Model"
         self.peer_returns = peer_returns
         self.mean_peer_return = np.mean(peer_returns)
-        self.event_date = pd.to_datetime(event_date)
-        self.estimation_window_size = estimation_window_size
-        self.horizon = horizon
 
         data = pd.DataFrame(
             data={"asset_returns": asset_returns, "market_returns": peer_returns}
@@ -191,9 +231,9 @@ class MeanAdjustedModel:
     def verify_assumptions(self):
         assumptions = [
             {
-                "name": "Comparable assets are representative",
-                "verified": False,
-                "method": (
+                "Assumption": "Comparable assets are representative",
+                "Verified": False,
+                "Verification_Method": (
                     "Check similarity (e.g., correlation)"
                     "between asset and peer group returns."
                 ),
@@ -206,9 +246,9 @@ class MeanAdjustedModel:
         ]
         assumptions = [
             {
-                "name": "Asset returns move identically with the market",
-                "verified": False,
-                "method": "Check correlation between asset and market returns.",
+                "Assumption": "Asset returns move identically with the market",
+                "Verified": False,
+                "Verification_Method": "Check correlation between asset and market returns.",
             }
         ]
 
@@ -226,6 +266,9 @@ class MeanAdjustedModel:
             self.data.index >= self.event_date - timedelta(days=1)
         ]
         expected_returns = self.mean_peer_return
+        self.residuals = (
+            self.estimation_window_data["asset_returns"] - self.mean_peer_return
+        )
         self.abnormal_returns = (
             self.event_window_data["asset_returns"] - expected_returns
         )

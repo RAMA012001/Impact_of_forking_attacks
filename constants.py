@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from enum import Enum
 import numpy as np
+import statsmodels.api as sm
+from statsmodels.tsa.stattools import adfuller
 
 # import os
 # os.chdir(Path().absolute())
@@ -113,6 +115,75 @@ class Cryptocurrency(MarketIndex):
             print(f"Bitcoin returns added successfully to {self.name} data.")
         except Exception as e:
             print(f"Failed to add Bitcoin returns for {self.name}: {e}")
+
+    def test_stationarity(self, significance_level=0.05):
+        """
+        Perform the Augmented Dickey-Fuller test for stationarity on the given time series data.
+
+        Parameters:
+        - data: array-like, the time series data to test for stationarity
+        - significance_level: float, the significance level for the test (default is 0.05)
+
+        Returns:
+        - test_statistic: float, the test statistic from the ADF test
+        - p_value: float, the p-value from the ADF test
+        - critical_values: dict, the critical values for different significance levels
+        - is_stationary: bool, whether the time series is stationary
+        """
+        # Ensure data is a 1D array
+        data = np.asarray(self.data["close"])
+
+        # Perform the ADF test
+        adf_result = adfuller(data)
+
+        test_statistic = adf_result[0]
+        p_value = adf_result[1]
+        critical_values = adf_result[4]
+
+        # Determine if the series is stationary
+        is_stationary = p_value < significance_level
+
+        return is_stationary
+
+    def run_ar_model(self, p=1, difference=False):
+        """
+        Run a simple AR(p) model on the given 
+        data with an option for first differencing.
+
+        Parameters:
+        - data: array-like, the time series data to fit the model on
+        - p: int, the lag order for the AR model (default is 1)
+        - difference: bool, whether to difference the data before 
+        fitting the model (default is False)
+
+        Returns:
+        - model_summary: summary of the fitted model
+        - coefficients: coefficients of the fitted model
+        - predictions: predicted values from the fitted model
+        """
+        # Ensure data is a 1D array
+        data = np.asarray(self.data["close"])
+
+        # Apply first differencing if specified
+        if difference:
+            data = np.diff(data)
+
+        # Prepare the model data
+        model_data = sm.add_constant(
+            sm.tsa.lagmat(data, maxlag=p, trim="both")
+        )  # Lagged values
+        y = data[p:]  # Response variable
+
+        # Fit the AR model
+        model = sm.OLS(y, model_data)
+        results = model.fit()
+
+        # Get predictions
+        self.ar_predictions = results.predict(model_data)
+        self.ar_results = results
+        self.ar_coeff = results.params[1]
+
+        return results
 
 
 CCMIX = MarketIndex(name="CCMIX", file_name="10min_CCMIX.csv")
