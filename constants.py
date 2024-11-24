@@ -5,6 +5,8 @@ from enum import Enum
 import numpy as np
 import statsmodels.api as sm
 from statsmodels.tsa.stattools import adfuller
+import matplotlib.pyplot as plt
+from statsmodels.tsa.stattools import pacf
 
 # import os
 # os.chdir(Path().absolute())
@@ -27,6 +29,32 @@ class MarketIndex:
         data["discrete_returns"] = (
             data[close_price_col] / data[close_price_col].shift(1) - 1
         )
+
+    @staticmethod
+    def get_partial_autocorrelation(series, lags=40):
+        # Compute the PACF values and confidence intervals
+        pacf_values = pacf(series, nlags=lags, method="ywm")
+        confint = 1.96 / np.sqrt(len(series))  # 95% confidence interval for each lag
+
+        return pacf_values, confint
+
+    @staticmethod
+    def plot_partial_autocorrelation(series, lags=40, title="PACF Plot"):
+        # Compute the PACF values and confidence intervals
+        pacf_values, confint = MarketIndex.get_partial_autocorrelation(series, lags)
+
+        # Plot the PACF values
+        plt.figure(figsize=(10, 6))
+        plt.stem(
+            range(len(pacf_values)), pacf_values
+        )  # Removed `use_line_collection=True`
+        plt.hlines(
+            [confint, -confint], xmin=0, xmax=lags, colors="red", linestyles="dashed"
+        )
+        plt.title(title)
+        plt.xlabel("Lag")
+        plt.ylabel("Partial Autocorrelation")
+        plt.show()
 
     def load_data(self):
         """Load data from the CSV file and reverse the order."""
@@ -118,11 +146,13 @@ class Cryptocurrency(MarketIndex):
 
     def test_stationarity(self, significance_level=0.05):
         """
-        Perform the Augmented Dickey-Fuller test for stationarity on the given time series data.
+        Perform the Augmented Dickey-Fuller test for stationarity
+        on the given time series data.
 
         Parameters:
         - data: array-like, the time series data to test for stationarity
-        - significance_level: float, the significance level for the test (default is 0.05)
+        - significance_level: float, the significance level for the test
+        (default is 0.05)
 
         Returns:
         - test_statistic: float, the test statistic from the ADF test
@@ -136,9 +166,7 @@ class Cryptocurrency(MarketIndex):
         # Perform the ADF test
         adf_result = adfuller(data)
 
-        test_statistic = adf_result[0]
         p_value = adf_result[1]
-        critical_values = adf_result[4]
 
         # Determine if the series is stationary
         is_stationary = p_value < significance_level
@@ -147,13 +175,13 @@ class Cryptocurrency(MarketIndex):
 
     def run_ar_model(self, p=1, difference=False):
         """
-        Run a simple AR(p) model on the given 
+        Run a simple AR(p) model on the given
         data with an option for first differencing.
 
         Parameters:
         - data: array-like, the time series data to fit the model on
         - p: int, the lag order for the AR model (default is 1)
-        - difference: bool, whether to difference the data before 
+        - difference: bool, whether to difference the data before
         fitting the model (default is False)
 
         Returns:
