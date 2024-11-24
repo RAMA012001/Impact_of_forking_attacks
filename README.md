@@ -10,6 +10,11 @@ Furthermore, the second hypothesis explores the impact of multiple attacks on a 
 
 To verify these hypotheses, this paper will reproduce existing literature on the impact of 51% attacks measured through abnormal returns, confirming previous findings of significant short-term economic repercussions. Moreover, for robustness, we will employ a new methodology recently utilized in other cryptocurrency incidents but not yet applied to 51% attacks. Specifically, the contribution will incorporate local projections as a second model to analyze the dynamics of market reactions to these attacks. By adopting this innovative approach, the study aims not only to measure the impact of these attacks in a more robust manner but also to introduce a novel way of analyzing their effects on the cryptocurrency market.
 
+<div align="center">
+  <img src="blockchain_attack.png" alt="Blockchain Forks Diagram" width="400">
+  <p><em>Figure 1: A diagram illustrating blockchain forks caused by 51% attacks.</em></p>
+</div>
+
 ## Literature Review
 
 In the literature review, we explored several key elements relevant to our study:
@@ -62,6 +67,11 @@ $$\Delta y_{t+h} = \alpha_h + \beta_h D_t + \gamma_h X_t + \epsilon_{t+h}$$
 where $$\Delta y_{t+h}$$ represents the change in returns at horizon $$h$$, $$D_t$$ is the event indicator, and $$X_t$$ includes control variables. The use of the Long-Difference specification is particularly advantageous because it minimizes finite-sample bias.
 
 To handle data challenges like heteroskedasticity and autocorrelation, we adopt the Newey-West estimator, which corrects standard errors and enhances statistical validity.
+
+<div align="center">
+  <img src="lag_btg_1.png" alt="Blockchain Forks Diagram" width="400">
+  <p><em>Figure 2: Local projections of the 51% attack on BTG for different AR orders.</em></p>
+</div>
 
 ## Results and Discussion
 
